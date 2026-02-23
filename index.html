@@ -232,7 +232,7 @@
 // ════════════════════════════════════════
 const NUM     = 4;
 const ROWS    = 12;
-const ANIM_MS = 2400;
+const ANIM_MS = 12000; // 1/5 speed
 const COLORS  = ['#60a5fa', '#f472b6', '#34d399', '#fbbf24'];
 
 // ════════════════════════════════════════
@@ -429,12 +429,9 @@ function buildPaths() {
 }
 
 // ════════════════════════════════════════
-//  DRAW ONE PATH (progress: 0→1)
+//  HELPER: セグメント配列の事前計算
 // ════════════════════════════════════════
-function drawPath(idx, progress) {
-  const { pts } = ppaths[idx];
-
-  // セグメントの長さを計算
+function calcSegs(pts) {
   let total = 0;
   const segs = [];
   for (let i = 1; i < pts.length; i++) {
@@ -442,11 +439,52 @@ function drawPath(idx, progress) {
     segs.push(len);
     total += len;
   }
+  return { segs, total };
+}
 
+// ════════════════════════════════════════
+//  HELPER: 経路上の現在位置を返す
+// ════════════════════════════════════════
+function getPosAlongPath(pts, segs, total, progress) {
   const target = progress * total;
+  let drawn = 0;
+  for (let i = 0; i < segs.length; i++) {
+    if (drawn + segs[i] <= target) {
+      drawn += segs[i];
+    } else {
+      const r = (target - drawn) / segs[i];
+      return {
+        x: pts[i].x + (pts[i+1].x - pts[i].x) * r,
+        y: pts[i].y + (pts[i+1].y - pts[i].y) * r
+      };
+    }
+  }
+  return pts[pts.length - 1];
+}
 
-  ctx.strokeStyle = COLORS[idx];
-  ctx.lineWidth   = 5;
+// ════════════════════════════════════════
+//  HELPER: 角丸矩形を塗りつぶす
+// ════════════════════════════════════════
+function fillRoundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y,     x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x,     y + h, r);
+  ctx.arcTo(x,     y + h, x,     y,     r);
+  ctx.arcTo(x,     y,     x + w, y,     r);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ════════════════════════════════════════
+//  DRAW TRAIL: 通過済み経路を薄く描画
+// ════════════════════════════════════════
+function drawTrail(idx, segs, total, progress) {
+  const { pts } = ppaths[idx];
+  const target  = progress * total;
+
+  ctx.strokeStyle = COLORS[idx] + '55'; // 半透明トレイル
+  ctx.lineWidth   = 2.5;
   ctx.lineCap     = 'round';
   ctx.lineJoin    = 'round';
 
@@ -456,18 +494,53 @@ function drawPath(idx, progress) {
   let drawn = 0;
   for (let i = 0; i < segs.length; i++) {
     if (drawn + segs[i] <= target) {
-      ctx.lineTo(pts[i + 1].x, pts[i + 1].y);
+      ctx.lineTo(pts[i+1].x, pts[i+1].y);
       drawn += segs[i];
     } else {
       const r = (target - drawn) / segs[i];
       ctx.lineTo(
-        pts[i].x + (pts[i + 1].x - pts[i].x) * r,
-        pts[i].y + (pts[i + 1].y - pts[i].y) * r
+        pts[i].x + (pts[i+1].x - pts[i].x) * r,
+        pts[i].y + (pts[i+1].y - pts[i].y) * r
       );
       break;
     }
   }
   ctx.stroke();
+}
+
+// ════════════════════════════════════════
+//  DRAW NAME BADGE: 名前バッジを現在位置に描画
+// ════════════════════════════════════════
+function drawNameBadge(idx, segs, total, progress) {
+  const { pts } = ppaths[idx];
+  const pos  = getPosAlongPath(pts, segs, total, progress);
+  const name = players[idx];
+
+  const FONT_SIZE = 11;
+  ctx.font = `bold ${FONT_SIZE}px -apple-system, 'Hiragino Sans', sans-serif`;
+  const textW = ctx.measureText(name).width;
+  const padX  = 8, padY = 5;
+  const w = textW + padX * 2;
+  const h = FONT_SIZE + padY * 2;
+  const r = h / 2;
+  const bx = pos.x - w / 2;
+  const by = pos.y - h / 2;
+
+  // 影
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur  = 8;
+
+  // バッジ背景（プレイヤーカラー）
+  ctx.fillStyle = COLORS[idx];
+  fillRoundRect(bx, by, w, h, r);
+
+  ctx.shadowBlur = 0;
+
+  // バッジ内テキスト
+  ctx.fillStyle    = '#1a1a2e';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, pos.x, pos.y);
 }
 
 // ════════════════════════════════════════
@@ -480,12 +553,25 @@ function runAnimation() {
   animStart = null;
   if (rafId) cancelAnimationFrame(rafId);
 
+  // 上部の名前ラベルを隠す（バッジが「動いている感」を出すため）
+  $('names-top').style.visibility = 'hidden';
+
+  // 各経路のセグメントを事前計算（毎フレーム計算しないよう）
+  const pathMeta = ppaths.map(p => calcSegs(p.pts));
+
   function frame(ts) {
     if (!animStart) animStart = ts;
     const prog = Math.min((ts - animStart) / ANIM_MS, 1);
 
     drawStatic();
-    for (let i = 0; i < NUM; i++) drawPath(i, prog);
+    // トレイル（薄い軌跡）を先に描画
+    for (let i = 0; i < NUM; i++) {
+      drawTrail(i, pathMeta[i].segs, pathMeta[i].total, prog);
+    }
+    // 名前バッジをトレイルの上に描画
+    for (let i = 0; i < NUM; i++) {
+      drawNameBadge(i, pathMeta[i].segs, pathMeta[i].total, prog);
+    }
 
     if (prog < 1) {
       rafId = requestAnimationFrame(frame);
@@ -498,6 +584,9 @@ function runAnimation() {
 
 function onAnimDone() {
   $('start-btn').disabled = false;
+
+  // 上部の名前ラベルを戻す
+  $('names-top').style.visibility = 'visible';
 
   // 誰が「飲み」に到達したか
   let drinker = -1;
