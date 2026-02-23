@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>あみだくじ 飲みゲーム</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a1a2e;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans',
+                   'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* ─── SCREEN BASE ─── */
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 64px; /* fixed button height */
+    }
+    .screen.hidden { display: none; }
+
+    /* ─── FIXED BUTTON ─── */
+    .fixed-btn {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 64px;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      font-size: 22px;
+      font-weight: bold;
+      letter-spacing: 3px;
+      color: #fff;
+      background: linear-gradient(135deg, #f97316, #ef4444);
+      transition: opacity 0.1s;
+      z-index: 100;
+    }
+    .fixed-btn:active  { opacity: 0.75; }
+    .fixed-btn:disabled {
+      background: linear-gradient(135deg, #475569, #334155);
+      cursor: default;
+    }
+
+    /* ─────────────────────────────────────
+       SCREEN 1 : INPUT
+    ───────────────────────────────────── */
+    .input-title {
+      text-align: center;
+      padding: 36px 16px 28px;
+      font-size: 22px;
+      font-weight: bold;
+      color: #fbbf24;
+      letter-spacing: 2px;
+      line-height: 1.65;
+    }
+    .input-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 0 28px;
+    }
+    .input-field {
+      width: 100%;
+      padding: 14px 18px;
+      background: #0f0f23;
+      border: 2px solid #334155;
+      border-radius: 12px;
+      font-size: 18px;
+      color: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus       { border-color: #f97316; }
+    .input-field::placeholder { color: #475569; }
+
+    /* ─────────────────────────────────────
+       SCREEN 2 : AMIDA
+    ───────────────────────────────────── */
+    .names-row,
+    .goals-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      flex-shrink: 0;
+    }
+    .names-row { height: 44px; }
+    .goals-row { height: 44px; }
+
+    .name-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: bold;
+      color: #e2e8f0;
+      padding: 0 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .goal-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    .goal-cell.safe  { font-size: 12px; color: #4ade80; }
+    .goal-cell.drink { font-size: 15px; color: #f97316; }
+
+    #amida-canvas {
+      flex: 1;
+      display: block;
+      width: 100%;
+      min-height: 0;
+    }
+
+    /* ─────────────────────────────────────
+       POPUP : 飲み
+    ───────────────────────────────────── */
+    #popup {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 8, 28, 0.93);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding-bottom: 64px;
+    }
+    #popup.hidden { display: none; }
+
+    /* retry button needs to beat amida's start button */
+    #retry-btn { z-index: 210; }
+
+    .popup-inner {
+      text-align: center;
+      animation: zoomIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    .popup-beer  { font-size: 80px; margin-bottom: 6px; }
+    .popup-drink {
+      display: inline-block;
+      font-size: 56px;
+      font-weight: bold;
+      color: #fbbf24;
+      letter-spacing: 6px;
+      animation: bounce 0.55s ease-in-out infinite alternate;
+    }
+    .popup-who {
+      margin-top: 28px;
+      font-size: 20px;
+      color: #cbd5e1;
+      line-height: 1.7;
+    }
+    .popup-who strong {
+      display: block;
+      font-size: 36px;
+      color: #fbbf24;
+      margin-bottom: 2px;
+    }
+
+    @keyframes zoomIn {
+      from { transform: scale(0.3); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    @keyframes bounce {
+      from { transform: translateY(0)    rotate(-2deg); }
+      to   { transform: translateY(-16px) rotate(2deg); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 1 : 名前入力
+════════════════════════════════════════ -->
+<div id="input-screen" class="screen">
+  <h1 class="input-title">🍺 あみだくじ<br>飲みゲーム 🍺</h1>
+  <div class="input-list">
+    <input id="p0" class="input-field" type="text" value="プレイヤー1" autocomplete="off">
+    <input id="p1" class="input-field" type="text" value="プレイヤー2" autocomplete="off">
+    <input id="p2" class="input-field" type="text" value="プレイヤー3" autocomplete="off">
+    <input id="p3" class="input-field" type="text" value="プレイヤー4" autocomplete="off">
+  </div>
+  <button id="to-amida-btn" class="fixed-btn">あみだを作る！</button>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 2 : あみだくじ
+════════════════════════════════════════ -->
+<div id="amida-screen" class="screen hidden">
+  <div id="names-top"    class="names-row"></div>
+  <canvas id="amida-canvas"></canvas>
+  <div id="goals-bottom" class="goals-row"></div>
+  <button id="start-btn" class="fixed-btn">スタート！</button>
+</div>
+
+<!-- ═══════════════════════════════════════
+     POPUP : 飲み
+════════════════════════════════════════ -->
+<div id="popup" class="hidden">
+  <div class="popup-inner">
+    <div class="popup-beer">🍺</div>
+    <span class="popup-drink">飲み！</span>
+    <div class="popup-who">
+      <strong id="drinker-name"></strong>
+      が飲みます！
+    </div>
+  </div>
+  <button id="retry-btn" class="fixed-btn">もう一度！</button>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════
+const NUM     = 4;
+const ROWS    = 12;
+const ANIM_MS = 2400;
+const COLORS  = ['#60a5fa', '#f472b6', '#34d399', '#fbbf24'];
+
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+let players = ['プレイヤー1', 'プレイヤー2', 'プレイヤー3', 'プレイヤー4'];
+let bridges = [];   // [{row, col}]  col と col+1 を繋ぐ横棒
+let goals   = [];   // 列ごとの結果: 'セーフ' | '飲み'
+let ppaths  = [];   // [{pts:[{x,y}], endCol}]  ピクセル経路
+let colX    = [];   // 各列の x 座標
+let topY, bottomY;
+let rowY = [];      // 各行の y 座標
+
+// ════════════════════════════════════════
+//  DOM
+// ════════════════════════════════════════
+const $  = id => document.getElementById(id);
+const inputScreen = $('input-screen');
+const amidaScreen = $('amida-screen');
+const popup       = $('popup');
+const canvas      = $('amida-canvas');
+const ctx         = canvas.getContext('2d');
+
+// ════════════════════════════════════════
+//  EVENTS
+// ════════════════════════════════════════
+$('to-amida-btn').addEventListener('click', () => {
+  for (let i = 0; i < NUM; i++) {
+    const v = $(`p${i}`).value.trim();
+    players[i] = v || `プレイヤー${i + 1}`;
+  }
+  showAmida();
+});
+
+$('start-btn').addEventListener('click', function () {
+  this.disabled = true;
+  runAnimation();
+});
+
+$('retry-btn').addEventListener('click', () => {
+  popup.classList.add('hidden');
+  showAmida();
+});
+
+// ════════════════════════════════════════
+//  SCREEN TRANSITION
+// ════════════════════════════════════════
+function showAmida() {
+  inputScreen.classList.add('hidden');
+  amidaScreen.classList.remove('hidden');
+  popup.classList.add('hidden');
+  $('start-btn').disabled = false;
+
+  generate();
+
+  // レイアウト確定を待ってからキャンバス初期化
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    initCanvas();
+    renderLabels();
+    drawStatic();
+  }));
+}
+
+// ════════════════════════════════════════
+//  AMIDA GENERATION
+// ════════════════════════════════════════
+function generate() {
+  bridges = [];
+  for (let row = 0; row < ROWS; row++) {
+    let col = 0;
+    while (col < NUM - 1) {
+      // 同じ行で隣接する橋を避けるため、橋を置いたら col+2
+      if (Math.random() < 0.5) {
+        bridges.push({ row, col });
+        col += 2;
+      } else {
+        col++;
+      }
+    }
+  }
+  // ゴール: ランダムな1列を「飲み」に
+  const drinkCol = Math.floor(Math.random() * NUM);
+  goals = Array(NUM).fill('セーフ');
+  goals[drinkCol] = '飲み';
+}
+
+// ════════════════════════════════════════
+//  CANVAS INIT
+// ════════════════════════════════════════
+function initCanvas() {
+  const W   = canvas.clientWidth;
+  const H   = canvas.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // 列の x 座標: 各 1/4 スライスの中心
+  colX = [];
+  for (let i = 0; i < NUM; i++) {
+    colX.push(W * (2 * i + 1) / (2 * NUM));
+  }
+
+  topY    = H * 0.04;
+  bottomY = H * 0.96;
+  rowY    = [];
+  const span = bottomY - topY;
+  for (let r = 0; r < ROWS; r++) {
+    rowY.push(topY + (r + 0.5) * span / ROWS);
+  }
+}
+
+// ════════════════════════════════════════
+//  DRAW STATIC AMIDA
+// ════════════════════════════════════════
+function drawStatic() {
+  const W = canvas.width  / (window.devicePixelRatio || 1);
+  const H = canvas.height / (window.devicePixelRatio || 1);
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+
+  // 縦線
+  for (let i = 0; i < NUM; i++) {
+    ctx.beginPath();
+    ctx.moveTo(colX[i], topY);
+    ctx.lineTo(colX[i], bottomY);
+    ctx.stroke();
+  }
+  // 横棒（橋）
+  for (const b of bridges) {
+    ctx.beginPath();
+    ctx.moveTo(colX[b.col],     rowY[b.row]);
+    ctx.lineTo(colX[b.col + 1], rowY[b.row]);
+    ctx.stroke();
+  }
+}
+
+// ════════════════════════════════════════
+//  RENDER NAME / GOAL LABELS
+// ════════════════════════════════════════
+function renderLabels() {
+  // 名前（上部）
+  const nt = $('names-top');
+  nt.innerHTML = '';
+  players.forEach(name => {
+    const d = document.createElement('div');
+    d.className   = 'name-cell';
+    d.textContent = name;
+    nt.appendChild(d);
+  });
+
+  // ゴール（下部）: 列順（左→右）で表示
+  const gb = $('goals-bottom');
+  gb.innerHTML = '';
+  goals.forEach(g => {
+    const d = document.createElement('div');
+    d.className   = `goal-cell ${g === '飲み' ? 'drink' : 'safe'}`;
+    d.textContent = g;
+    gb.appendChild(d);
+  });
+}
+
+// ════════════════════════════════════════
+//  PATH BUILDING
+// ════════════════════════════════════════
+function buildPaths() {
+  ppaths = [];
+  for (let start = 0; start < NUM; start++) {
+    let col = start;
+    const pts = [{ x: colX[col], y: topY }];
+
+    for (let row = 0; row < ROWS; row++) {
+      // 下へ
+      pts.push({ x: colX[col], y: rowY[row] });
+
+      // 橋チェック（右へ / 左へ）
+      const rb = bridges.find(b => b.row === row && b.col === col);
+      const lb = bridges.find(b => b.row === row && b.col === col - 1);
+      if (rb) {
+        col++;
+        pts.push({ x: colX[col], y: rowY[row] });
+      } else if (lb) {
+        col--;
+        pts.push({ x: colX[col], y: rowY[row] });
+      }
+    }
+    pts.push({ x: colX[col], y: bottomY });
+    ppaths.push({ pts, endCol: col });
+  }
+}
+
+// ════════════════════════════════════════
+//  DRAW ONE PATH (progress: 0→1)
+// ════════════════════════════════════════
+function drawPath(idx, progress) {
+  const { pts } = ppaths[idx];
+
+  // セグメントの長さを計算
+  let total = 0;
+  const segs = [];
+  for (let i = 1; i < pts.length; i++) {
+    const len = Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
+    segs.push(len);
+    total += len;
+  }
+
+  const target = progress * total;
+
+  ctx.strokeStyle = COLORS[idx];
+  ctx.lineWidth   = 5;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+
+  let drawn = 0;
+  for (let i = 0; i < segs.length; i++) {
+    if (drawn + segs[i] <= target) {
+      ctx.lineTo(pts[i + 1].x, pts[i + 1].y);
+      drawn += segs[i];
+    } else {
+      const r = (target - drawn) / segs[i];
+      ctx.lineTo(
+        pts[i].x + (pts[i + 1].x - pts[i].x) * r,
+        pts[i].y + (pts[i + 1].y - pts[i].y) * r
+      );
+      break;
+    }
+  }
+  ctx.stroke();
+}
+
+// ════════════════════════════════════════
+//  ANIMATION
+// ════════════════════════════════════════
+let rafId = null, animStart = null;
+
+function runAnimation() {
+  buildPaths();
+  animStart = null;
+  if (rafId) cancelAnimationFrame(rafId);
+
+  function frame(ts) {
+    if (!animStart) animStart = ts;
+    const prog = Math.min((ts - animStart) / ANIM_MS, 1);
+
+    drawStatic();
+    for (let i = 0; i < NUM; i++) drawPath(i, prog);
+
+    if (prog < 1) {
+      rafId = requestAnimationFrame(frame);
+    } else {
+      onAnimDone();
+    }
+  }
+  rafId = requestAnimationFrame(frame);
+}
+
+function onAnimDone() {
+  $('start-btn').disabled = false;
+
+  // 誰が「飲み」に到達したか
+  let drinker = -1;
+  for (let i = 0; i < NUM; i++) {
+    if (goals[ppaths[i].endCol] === '飲み') { drinker = i; break; }
+  }
+
+  if (drinker !== -1) {
+    setTimeout(() => {
+      $('drinker-name').textContent = players[drinker];
+      popup.classList.remove('hidden');
+    }, 500);
+  }
+}
+
+// ════════════════════════════════════════
+//  RESIZE
+// ════════════════════════════════════════
+window.addEventListener('resize', () => {
+  if (!amidaScreen.classList.contains('hidden')) {
+    initCanvas();
+    renderLabels();
+    drawStatic();
+  }
+});
+</script>
+</body>
+</html>
