@@ -30,9 +30,10 @@
       inset: 0;
       display: flex;
       flex-direction: column;
-      padding-bottom: 64px; /* fixed button height */
+      padding-bottom: 64px;
     }
     .screen.hidden { display: none; }
+    #input-screen { overflow-y: auto; }
 
     /* ─── FIXED BUTTON ─── */
     .fixed-btn {
@@ -63,7 +64,7 @@
     ───────────────────────────────────── */
     .input-title {
       text-align: center;
-      padding: 36px 16px 28px;
+      padding: 32px 16px 24px;
       font-size: 22px;
       font-weight: bold;
       color: #fbbf24;
@@ -73,12 +74,57 @@
     .input-list {
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      padding: 0 28px;
+      gap: 10px;
+      padding: 0 20px;
     }
-    .input-field {
+
+    /* プレイヤー行：アバター ＋ 入力フィールド */
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(15, 15, 35, 0.7);
+      border: 1px solid #1e293b;
+      border-radius: 20px;
+      padding: 10px 14px;
+    }
+
+    /* アバターボタン（丸いカメラボタン） */
+    .avatar-wrap {
+      flex-shrink: 0;
+      width: 104px;
+      height: 104px;
+      border-radius: 50%;
+      border: 2px dashed #475569;
+      background: #0f0f23;
+      cursor: pointer;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      transition: border-color 0.2s, transform 0.1s, box-shadow 0.2s;
+      position: relative;
+    }
+    .avatar-wrap:active { transform: scale(0.92); }
+    .avatar-wrap.has-photo {
+      border: 3px solid #f97316;
+      box-shadow: 0 0 16px rgba(249, 115, 22, 0.45);
+    }
+    .avatar-wrap .av-img {
       width: 100%;
-      padding: 14px 18px;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+      pointer-events: none;
+    }
+    .avatar-wrap.has-photo .av-img  { display: block; }
+    .avatar-wrap.has-photo .cam-icon { display: none; }
+
+    .input-field {
+      flex: 1;
+      min-width: 0;
+      padding: 14px 16px;
       background: #0f0f23;
       border: 2px solid #334155;
       border-radius: 12px;
@@ -87,7 +133,7 @@
       outline: none;
       transition: border-color 0.2s;
     }
-    .input-field:focus       { border-color: #f97316; }
+    .input-field:focus        { border-color: #f97316; }
     .input-field::placeholder { color: #475569; }
 
     /* ─────────────────────────────────────
@@ -99,21 +145,36 @@
       grid-template-columns: repeat(4, 1fr);
       flex-shrink: 0;
     }
-    .names-row { height: 44px; }
+    .names-row { height: 100px; } /* 写真 + 名前 */
     .goals-row { height: 44px; }
 
     .name-cell {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
+      gap: 3px;
+      font-size: 11px;
       font-weight: bold;
       color: #e2e8f0;
-      padding: 0 4px;
+      padding: 4px 2px;
+      overflow: hidden;
+    }
+    .name-cell .nc-photo {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2.5px solid #475569;
+      flex-shrink: 0;
+    }
+    .name-cell .nc-text {
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
+      max-width: 100%;
     }
+
     .goal-cell {
       display: flex;
       align-items: center;
@@ -136,43 +197,67 @@
     #popup {
       position: fixed;
       inset: 0;
-      background: rgba(8, 8, 28, 0.93);
+      background: rgba(8, 8, 28, 0.88);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 200;
       padding-bottom: 64px;
+      padding-left: 24px;
+      padding-right: 24px;
     }
     #popup.hidden { display: none; }
 
-    /* retry button needs to beat amida's start button */
     #retry-btn { z-index: 210; }
 
     .popup-inner {
       text-align: center;
+      background: linear-gradient(160deg, rgba(30, 30, 65, 0.95), rgba(12, 12, 32, 0.97));
+      border: 1px solid rgba(249, 115, 22, 0.32);
+      border-radius: 32px;
+      padding: 36px 36px 30px;
+      box-shadow: 0 12px 56px rgba(0, 0, 0, 0.7), 0 0 80px rgba(249, 115, 22, 0.1);
+      max-width: 360px;
+      width: 100%;
       animation: zoomIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     }
-    .popup-beer  { font-size: 80px; margin-bottom: 6px; }
+    .popup-photo {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid #fbbf24;
+      box-shadow: 0 0 28px rgba(251, 191, 36, 0.6), 0 0 64px rgba(251, 191, 36, 0.2);
+      margin-bottom: 18px;
+      display: none;
+    }
+    .popup-photo.show { display: inline-block; }
+    .popup-beer  { font-size: 72px; margin-bottom: 4px; }
     .popup-drink {
       display: inline-block;
-      font-size: 56px;
+      font-size: 64px;
       font-weight: bold;
       color: #fbbf24;
       letter-spacing: 6px;
+      text-shadow: 0 0 24px rgba(251, 191, 36, 0.65), 0 0 48px rgba(251, 191, 36, 0.28);
       animation: bounce 0.55s ease-in-out infinite alternate;
     }
     .popup-who {
-      margin-top: 28px;
-      font-size: 20px;
-      color: #cbd5e1;
+      margin-top: 20px;
+      font-size: 18px;
+      color: #94a3b8;
       line-height: 1.7;
     }
     .popup-who strong {
       display: block;
-      font-size: 36px;
+      font-size: 40px;
       color: #fbbf24;
-      margin-bottom: 2px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+      text-shadow: 0 0 16px rgba(251, 191, 36, 0.4);
     }
 
     @keyframes zoomIn {
@@ -193,10 +278,43 @@
 <div id="input-screen" class="screen">
   <h1 class="input-title">🍺 あみだくじ<br>飲みゲーム 🍺</h1>
   <div class="input-list">
-    <input id="p0" class="input-field" type="text" value="プレイヤー1" autocomplete="off">
-    <input id="p1" class="input-field" type="text" value="プレイヤー2" autocomplete="off">
-    <input id="p2" class="input-field" type="text" value="プレイヤー3" autocomplete="off">
-    <input id="p3" class="input-field" type="text" value="プレイヤー4" autocomplete="off">
+
+    <div class="player-row">
+      <div class="avatar-wrap" id="av-wrap0">
+        <span class="cam-icon">📷</span>
+        <img class="av-img" id="av-img0" alt="">
+      </div>
+      <input id="p0" class="input-field" type="text" value="プレイヤー1" autocomplete="off">
+      <input id="av-file0" type="file" accept="image/*" style="display:none">
+    </div>
+
+    <div class="player-row">
+      <div class="avatar-wrap" id="av-wrap1">
+        <span class="cam-icon">📷</span>
+        <img class="av-img" id="av-img1" alt="">
+      </div>
+      <input id="p1" class="input-field" type="text" value="プレイヤー2" autocomplete="off">
+      <input id="av-file1" type="file" accept="image/*" style="display:none">
+    </div>
+
+    <div class="player-row">
+      <div class="avatar-wrap" id="av-wrap2">
+        <span class="cam-icon">📷</span>
+        <img class="av-img" id="av-img2" alt="">
+      </div>
+      <input id="p2" class="input-field" type="text" value="プレイヤー3" autocomplete="off">
+      <input id="av-file2" type="file" accept="image/*" style="display:none">
+    </div>
+
+    <div class="player-row">
+      <div class="avatar-wrap" id="av-wrap3">
+        <span class="cam-icon">📷</span>
+        <img class="av-img" id="av-img3" alt="">
+      </div>
+      <input id="p3" class="input-field" type="text" value="プレイヤー4" autocomplete="off">
+      <input id="av-file3" type="file" accept="image/*" style="display:none">
+    </div>
+
   </div>
   <button id="to-amida-btn" class="fixed-btn">あみだを作る！</button>
 </div>
@@ -216,6 +334,7 @@
 ════════════════════════════════════════ -->
 <div id="popup" class="hidden">
   <div class="popup-inner">
+    <img id="drinker-photo" class="popup-photo" alt="">
     <div class="popup-beer">🍺</div>
     <span class="popup-drink">飲み！</span>
     <div class="popup-who">
@@ -238,13 +357,15 @@ const COLORS  = ['#60a5fa', '#f472b6', '#34d399', '#fbbf24'];
 // ════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════
-let players = ['プレイヤー1', 'プレイヤー2', 'プレイヤー3', 'プレイヤー4'];
-let bridges = [];   // [{row, col}]  col と col+1 を繋ぐ横棒
-let goals   = [];   // 列ごとの結果: 'セーフ' | '飲み'
-let ppaths  = [];   // [{pts:[{x,y}], endCol}]  ピクセル経路
-let colX    = [];   // 各列の x 座標
+let players      = ['プレイヤー1', 'プレイヤー2', 'プレイヤー3', 'プレイヤー4'];
+let playerPhotos = [null, null, null, null]; // dataURL
+let playerImages = [null, null, null, null]; // HTMLImageElement
+let bridges      = [];
+let goals        = [];
+let ppaths       = [];
+let colX         = [];
 let topY, bottomY;
-let rowY = [];      // 各行の y 座標
+let rowY         = [];
 
 // ════════════════════════════════════════
 //  DOM
@@ -255,6 +376,39 @@ const amidaScreen = $('amida-screen');
 const popup       = $('popup');
 const canvas      = $('amida-canvas');
 const ctx         = canvas.getContext('2d');
+
+// ════════════════════════════════════════
+//  CAMERA BUTTON SETUP
+// ════════════════════════════════════════
+for (let i = 0; i < NUM; i++) {
+  const avWrap   = $(`av-wrap${i}`);
+  const fileInput = $(`av-file${i}`);
+
+  avWrap.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataURL = ev.target.result;
+      playerPhotos[i] = dataURL;
+
+      // プレビュー更新
+      const avImg = $(`av-img${i}`);
+      avImg.src = dataURL;
+      avWrap.classList.add('has-photo');
+
+      // Imageオブジェクトをキャッシュ
+      const img = new Image();
+      img.onload = () => { playerImages[i] = img; };
+      img.src = dataURL;
+    };
+    reader.readAsDataURL(file);
+    // 同じファイルを再選択できるようリセット
+    fileInput.value = '';
+  });
+}
 
 // ════════════════════════════════════════
 //  EVENTS
@@ -288,7 +442,6 @@ function showAmida() {
 
   generate();
 
-  // レイアウト確定を待ってからキャンバス初期化
   requestAnimationFrame(() => requestAnimationFrame(() => {
     initCanvas();
     renderLabels();
@@ -304,7 +457,6 @@ function generate() {
   for (let row = 0; row < ROWS; row++) {
     let col = 0;
     while (col < NUM - 1) {
-      // 同じ行で隣接する橋を避けるため、橋を置いたら col+2
       if (Math.random() < 0.5) {
         bridges.push({ row, col });
         col += 2;
@@ -313,7 +465,6 @@ function generate() {
       }
     }
   }
-  // ゴール: ランダムな1列を「飲み」に
   const drinkCol = Math.floor(Math.random() * NUM);
   goals = Array(NUM).fill('セーフ');
   goals[drinkCol] = '飲み';
@@ -331,7 +482,6 @@ function initCanvas() {
   canvas.height = H * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // 列の x 座標: 各 1/4 スライスの中心
   colX = [];
   for (let i = 0; i < NUM; i++) {
     colX.push(W * (2 * i + 1) / (2 * NUM));
@@ -358,14 +508,12 @@ function drawStatic() {
   ctx.lineWidth   = 2.5;
   ctx.lineCap     = 'round';
 
-  // 縦線
   for (let i = 0; i < NUM; i++) {
     ctx.beginPath();
     ctx.moveTo(colX[i], topY);
     ctx.lineTo(colX[i], bottomY);
     ctx.stroke();
   }
-  // 横棒（橋）
   for (const b of bridges) {
     ctx.beginPath();
     ctx.moveTo(colX[b.col],     rowY[b.row]);
@@ -378,17 +526,30 @@ function drawStatic() {
 //  RENDER NAME / GOAL LABELS
 // ════════════════════════════════════════
 function renderLabels() {
-  // 名前（上部）
+  // 名前（上部）: 写真があれば写真＋名前
   const nt = $('names-top');
   nt.innerHTML = '';
-  players.forEach(name => {
+  players.forEach((name, i) => {
     const d = document.createElement('div');
-    d.className   = 'name-cell';
-    d.textContent = name;
+    d.className = 'name-cell';
+
+    if (playerPhotos[i]) {
+      const img = document.createElement('img');
+      img.className = 'nc-photo';
+      img.src = playerPhotos[i];
+      img.alt = name;
+      d.appendChild(img);
+    }
+
+    const span = document.createElement('span');
+    span.className = 'nc-text';
+    span.textContent = name;
+    d.appendChild(span);
+
     nt.appendChild(d);
   });
 
-  // ゴール（下部）: 列順（左→右）で表示
+  // ゴール（下部）
   const gb = $('goals-bottom');
   gb.innerHTML = '';
   goals.forEach(g => {
@@ -409,10 +570,8 @@ function buildPaths() {
     const pts = [{ x: colX[col], y: topY }];
 
     for (let row = 0; row < ROWS; row++) {
-      // 下へ
       pts.push({ x: colX[col], y: rowY[row] });
 
-      // 橋チェック（右へ / 左へ）
       const rb = bridges.find(b => b.row === row && b.col === col);
       const lb = bridges.find(b => b.row === row && b.col === col - 1);
       if (rb) {
@@ -483,7 +642,7 @@ function drawTrail(idx, segs, total, progress) {
   const { pts } = ppaths[idx];
   const target  = progress * total;
 
-  ctx.strokeStyle = COLORS[idx] + '55'; // 半透明トレイル
+  ctx.strokeStyle = COLORS[idx] + '55';
   ctx.lineWidth   = 2.5;
   ctx.lineCap     = 'round';
   ctx.lineJoin    = 'round';
@@ -509,38 +668,84 @@ function drawTrail(idx, segs, total, progress) {
 }
 
 // ════════════════════════════════════════
-//  DRAW NAME BADGE: 名前バッジを現在位置に描画
+//  DRAW BADGE: 写真 + 名前が一緒に動く
 // ════════════════════════════════════════
 function drawNameBadge(idx, segs, total, progress) {
   const { pts } = ppaths[idx];
   const pos  = getPosAlongPath(pts, segs, total, progress);
   const name = players[idx];
+  const img  = playerImages[idx];
 
-  const FONT_SIZE = 11;
+  const FONT_SIZE = 10;
   ctx.font = `bold ${FONT_SIZE}px -apple-system, 'Hiragino Sans', sans-serif`;
   const textW = ctx.measureText(name).width;
-  const padX  = 8, padY = 5;
-  const w = textW + padX * 2;
-  const h = FONT_SIZE + padY * 2;
-  const r = h / 2;
-  const bx = pos.x - w / 2;
-  const by = pos.y - h / 2;
 
-  // 影
-  ctx.shadowColor = 'rgba(0,0,0,0.6)';
-  ctx.shadowBlur  = 8;
+  if (img && img.complete && img.naturalWidth > 0) {
+    // ── 写真 + 名前バッジ ──────────────────
+    const PHOTO_R  = 28;           // 写真の半径
+    const PHOTO_D  = PHOTO_R * 2;
+    const PILL_PX  = 6;            // 名前ピルの左右パディング
+    const PILL_PY  = 3;            // 名前ピルの上下パディング
+    const pillW    = Math.max(PHOTO_D + 4, textW + PILL_PX * 2);
+    const pillH    = FONT_SIZE + PILL_PY * 2;
+    const GAP      = 2;            // 写真とピルの間隔
+    const TOTAL_H  = PHOTO_D + GAP + pillH;
 
-  // バッジ背景（プレイヤーカラー）
-  ctx.fillStyle = COLORS[idx];
-  fillRoundRect(bx, by, w, h, r);
+    // 全体の垂直中心 = pos.y
+    const photoTopY = pos.y - TOTAL_H / 2;
+    const photoCY   = photoTopY + PHOTO_R;
+    const pillTopY  = photoTopY + PHOTO_D + GAP;
 
-  ctx.shadowBlur = 0;
+    // ── 写真（丸く切り抜き）
+    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur  = 6;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(pos.x, photoCY, PHOTO_R, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(img, pos.x - PHOTO_R, photoCY - PHOTO_R, PHOTO_D, PHOTO_D);
+    ctx.restore();
+    ctx.shadowBlur = 0;
 
-  // バッジ内テキスト
-  ctx.fillStyle    = '#1a1a2e';
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(name, pos.x, pos.y);
+    // 写真の枠線（プレイヤーカラー）
+    ctx.strokeStyle = COLORS[idx];
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.arc(pos.x, photoCY, PHOTO_R, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // ── 名前ピル
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur  = 5;
+    ctx.fillStyle   = COLORS[idx];
+    fillRoundRect(pos.x - pillW / 2, pillTopY, pillW, pillH, pillH / 2);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle    = '#1a1a2e';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name, pos.x, pillTopY + pillH / 2);
+
+  } else {
+    // ── 写真なし：テキストバッジのみ（従来どおり）
+    const padX = 8, padY = 5;
+    const w = textW + padX * 2;
+    const h = FONT_SIZE + padY * 2;
+    const r = h / 2;
+    const bx = pos.x - w / 2;
+    const by = pos.y - h / 2;
+
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur  = 8;
+    ctx.fillStyle   = COLORS[idx];
+    fillRoundRect(bx, by, w, h, r);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle    = '#1a1a2e';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name, pos.x, pos.y);
+  }
 }
 
 // ════════════════════════════════════════
@@ -553,10 +758,8 @@ function runAnimation() {
   animStart = null;
   if (rafId) cancelAnimationFrame(rafId);
 
-  // 上部の名前ラベルを隠す（バッジが「動いている感」を出すため）
   $('names-top').style.visibility = 'hidden';
 
-  // 各経路のセグメントを事前計算（毎フレーム計算しないよう）
   const pathMeta = ppaths.map(p => calcSegs(p.pts));
 
   function frame(ts) {
@@ -564,11 +767,9 @@ function runAnimation() {
     const prog = Math.min((ts - animStart) / ANIM_MS, 1);
 
     drawStatic();
-    // トレイル（薄い軌跡）を先に描画
     for (let i = 0; i < NUM; i++) {
       drawTrail(i, pathMeta[i].segs, pathMeta[i].total, prog);
     }
-    // 名前バッジをトレイルの上に描画
     for (let i = 0; i < NUM; i++) {
       drawNameBadge(i, pathMeta[i].segs, pathMeta[i].total, prog);
     }
@@ -584,11 +785,8 @@ function runAnimation() {
 
 function onAnimDone() {
   $('start-btn').disabled = false;
-
-  // 上部の名前ラベルを戻す
   $('names-top').style.visibility = 'visible';
 
-  // 誰が「飲み」に到達したか
   let drinker = -1;
   for (let i = 0; i < NUM; i++) {
     if (goals[ppaths[i].endCol] === '飲み') { drinker = i; break; }
@@ -597,6 +795,16 @@ function onAnimDone() {
   if (drinker !== -1) {
     setTimeout(() => {
       $('drinker-name').textContent = players[drinker];
+
+      // 写真があればポップアップに表示
+      const photoEl = $('drinker-photo');
+      if (playerPhotos[drinker]) {
+        photoEl.src = playerPhotos[drinker];
+        photoEl.classList.add('show');
+      } else {
+        photoEl.classList.remove('show');
+      }
+
       popup.classList.remove('hidden');
     }, 500);
   }
