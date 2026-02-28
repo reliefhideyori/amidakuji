@@ -107,6 +107,19 @@
       position: relative;
     }
     .avatar-wrap:active { transform: scale(0.92); }
+
+    /* ファイル入力: overflow:hidden の外に配置しつつ画面外に隠す
+       display:none / visibility:hidden だと iOS Safari の label 連携が動かないため
+       position:fixed で画面外へ飛ばす方式を使う */
+    .av-file-hidden {
+      position: fixed;
+      top: -9999px;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+
     .avatar-wrap.has-photo {
       border: 3px solid #f97316;
       box-shadow: 0 0 16px rgba(249, 115, 22, 0.45);
@@ -346,40 +359,42 @@
   <div class="input-list">
 
     <div class="player-row">
-      <div class="avatar-wrap" id="av-wrap0">
+      <label class="avatar-wrap" id="av-wrap0" for="av-file0">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img0" alt="">
-      </div>
+      </label>
       <input id="p0" class="input-field" type="text" value="プレイヤー1" autocomplete="off">
-      <input id="av-file0" type="file" accept="image/*" style="display:none">
     </div>
 
     <div class="player-row">
-      <div class="avatar-wrap" id="av-wrap1">
+      <label class="avatar-wrap" id="av-wrap1" for="av-file1">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img1" alt="">
-      </div>
+      </label>
       <input id="p1" class="input-field" type="text" value="プレイヤー2" autocomplete="off">
-      <input id="av-file1" type="file" accept="image/*" style="display:none">
     </div>
 
     <div class="player-row">
-      <div class="avatar-wrap" id="av-wrap2">
+      <label class="avatar-wrap" id="av-wrap2" for="av-file2">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img2" alt="">
-      </div>
+      </label>
       <input id="p2" class="input-field" type="text" value="プレイヤー3" autocomplete="off">
-      <input id="av-file2" type="file" accept="image/*" style="display:none">
     </div>
 
     <div class="player-row">
-      <div class="avatar-wrap" id="av-wrap3">
+      <label class="avatar-wrap" id="av-wrap3" for="av-file3">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img3" alt="">
-      </div>
+      </label>
       <input id="p3" class="input-field" type="text" value="プレイヤー4" autocomplete="off">
-      <input id="av-file3" type="file" accept="image/*" style="display:none">
     </div>
+
+    <!-- file inputs: overflow:hidden の外・画面外に配置（iOS Safari の label 連携に必須） -->
+    <input id="av-file0" type="file" accept="image/*" class="av-file-hidden">
+    <input id="av-file1" type="file" accept="image/*" class="av-file-hidden">
+    <input id="av-file2" type="file" accept="image/*" class="av-file-hidden">
+    <input id="av-file3" type="file" accept="image/*" class="av-file-hidden">
 
   </div>
   <button id="to-amida-btn" class="fixed-btn">あみだを作る！</button>
@@ -453,14 +468,13 @@ const ctx         = canvas.getContext('2d');
 // ════════════════════════════════════════
 //  CAMERA BUTTON SETUP
 // ════════════════════════════════════════
+// iOS Safari 対応:
+//   - <label for="av-fileX"> がタップを受け取り、画面外の file input を起動
+//   - overflow:hidden コンテナ内の file input は iOS Safari でタップ不可のため
+//     file input は input-list の末尾（overflow:hidden の外）に配置済み
 for (let i = 0; i < NUM; i++) {
-  const avWrap   = $(`av-wrap${i}`);
+  const avWrap    = $(`av-wrap${i}`);
   const fileInput = $(`av-file${i}`);
-
-  // iOS Safari: overflow:auto コンテナ内の file input は change が発火しないため body へ移動
-  document.body.appendChild(fileInput);
-
-  avWrap.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -470,17 +484,14 @@ for (let i = 0; i < NUM; i++) {
       const dataURL = ev.target.result;
       playerPhotos[i] = dataURL;
 
-      // プレビュー更新
       const avImg = $(`av-img${i}`);
       avImg.src = dataURL;
       avWrap.classList.add('has-photo');
 
-      // Imageオブジェクトをキャッシュ
       const img = new Image();
       img.onload = () => { playerImages[i] = img; };
       img.src = dataURL;
 
-      // 読み込み完了後にリセット（同じファイルを再選択できるよう）
       fileInput.value = '';
     };
     reader.readAsDataURL(file);
