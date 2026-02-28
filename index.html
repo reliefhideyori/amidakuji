@@ -479,13 +479,23 @@ for (let i = 0; i < NUM; i++) {
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataURL = ev.target.result;
-      playerPhotos[i] = dataURL;
+    // FileReader はHEIC等で失敗するため createObjectURL + canvas で JPEG 変換
+    const objectURL = URL.createObjectURL(file);
+    const tempImg = new Image();
+    tempImg.onload = () => {
+      // max 400px にリサイズ（アバター104px・ポップアップ200px に十分）
+      const MAX = 400;
+      let w = tempImg.naturalWidth, h = tempImg.naturalHeight;
+      if (w > h) { if (w > MAX) { h = h * MAX / w; w = MAX; } }
+      else        { if (h > MAX) { w = w * MAX / h; h = MAX; } }
+      const cvs = document.createElement('canvas');
+      cvs.width = w; cvs.height = h;
+      cvs.getContext('2d').drawImage(tempImg, 0, 0, w, h);
+      const dataURL = cvs.toDataURL('image/jpeg', 0.85);
+      URL.revokeObjectURL(objectURL);
 
-      const avImg = $(`av-img${i}`);
-      avImg.src = dataURL;
+      playerPhotos[i] = dataURL;
+      $(`av-img${i}`).src = dataURL;
       avWrap.classList.add('has-photo');
 
       const img = new Image();
@@ -494,7 +504,8 @@ for (let i = 0; i < NUM; i++) {
 
       fileInput.value = '';
     };
-    reader.readAsDataURL(file);
+    tempImg.onerror = () => URL.revokeObjectURL(objectURL);
+    tempImg.src = objectURL;
   });
 }
 
