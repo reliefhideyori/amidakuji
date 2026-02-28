@@ -192,6 +192,19 @@
     }
 
     /* ─────────────────────────────────────
+       POPUP FLASH OVERLAY
+    ───────────────────────────────────── */
+    #popup-flash {
+      position: fixed;
+      inset: 0;
+      background: rgba(239, 68, 68, 0.55);
+      z-index: 195;
+      pointer-events: none;
+      opacity: 0;
+    }
+    #popup-flash.active { animation: screenFlash 0.9s ease-out forwards; }
+
+    /* ─────────────────────────────────────
        POPUP : 飲み
     ───────────────────────────────────── */
     #popup {
@@ -215,59 +228,106 @@
 
     .popup-inner {
       text-align: center;
-      background: linear-gradient(160deg, rgba(30, 30, 65, 0.95), rgba(12, 12, 32, 0.97));
-      border: 1px solid rgba(249, 115, 22, 0.32);
+      background: linear-gradient(160deg, rgba(35, 12, 12, 0.97), rgba(20, 8, 8, 0.99));
+      border: 1.5px solid rgba(239, 68, 68, 0.5);
       border-radius: 32px;
-      padding: 36px 36px 30px;
-      box-shadow: 0 12px 56px rgba(0, 0, 0, 0.7), 0 0 80px rgba(249, 115, 22, 0.1);
+      padding: 24px 32px 22px;
+      box-shadow: 0 12px 56px rgba(0, 0, 0, 0.85), 0 0 60px rgba(239, 68, 68, 0.2);
       max-width: 360px;
       width: 100%;
-      animation: zoomIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      animation: drinkReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+                 borderPulse 2s ease-in-out 0.6s infinite;
+    }
+    .popup-verdict {
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      color: #ef4444;
+      margin-bottom: 14px;
     }
     .popup-photo {
-      width: 160px;
-      height: 160px;
+      width: 200px;
+      height: 200px;
       border-radius: 50%;
       object-fit: cover;
-      border: 4px solid #fbbf24;
-      box-shadow: 0 0 28px rgba(251, 191, 36, 0.6), 0 0 64px rgba(251, 191, 36, 0.2);
-      margin-bottom: 18px;
+      border: 4px solid #ef4444;
+      box-shadow: 0 0 32px rgba(239, 68, 68, 0.7), 0 0 80px rgba(239, 68, 68, 0.3);
+      margin-bottom: 14px;
       display: none;
+      animation: dangerPulse 1.5s ease-in-out infinite;
     }
     .popup-photo.show { display: inline-block; }
-    .popup-beer  { font-size: 72px; margin-bottom: 4px; }
-    .popup-drink {
-      display: inline-block;
-      font-size: 64px;
-      font-weight: bold;
-      color: #fbbf24;
-      letter-spacing: 6px;
-      text-shadow: 0 0 24px rgba(251, 191, 36, 0.65), 0 0 48px rgba(251, 191, 36, 0.28);
-      animation: bounce 1s ease-in-out infinite;
+    .popup-fallback-icon {
+      font-size: 88px;
+      display: block;
+      margin-bottom: 8px;
+      animation: fallbackBounce 1s ease-in-out infinite;
     }
-    .popup-who {
-      margin-top: 20px;
-      font-size: 18px;
-      color: #94a3b8;
-      line-height: 1.7;
-    }
+    .popup-who { margin-bottom: 8px; }
     .popup-who strong {
       display: block;
-      font-size: 40px;
-      color: #fbbf24;
-      margin-bottom: 4px;
+      font-size: 42px;
+      color: #fff;
       letter-spacing: 1px;
-      text-shadow: 0 0 16px rgba(251, 191, 36, 0.4);
+      text-shadow: 0 0 20px rgba(239, 68, 68, 0.7), 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
+    .popup-who-sub {
+      font-size: 15px;
+      color: #94a3b8;
+      margin-top: 3px;
+    }
+    .popup-drink {
+      display: block;
+      font-size: 68px;
+      font-weight: bold;
+      color: #ef4444;
+      letter-spacing: 4px;
+      text-shadow: 0 0 28px rgba(239, 68, 68, 0.9), 0 0 64px rgba(239, 68, 68, 0.4);
+      animation: bounce 0.9s ease-in-out infinite;
+      margin-bottom: 10px;
+    }
+    .popup-beers {
+      font-size: 28px;
+      letter-spacing: 6px;
+      animation: beerFloat 1.2s ease-in-out infinite;
     }
 
-    @keyframes zoomIn {
-      from { transform: scale(0.3); opacity: 0; }
-      to   { transform: scale(1);   opacity: 1; }
+    @keyframes screenFlash {
+      0%   { opacity: 0.85; }
+      100% { opacity: 0; }
+    }
+    @keyframes drinkReveal {
+      0%   { transform: scale(0.15) rotate(-10deg); opacity: 0; }
+      55%  { transform: scale(1.07) rotate(1.5deg);  opacity: 1; }
+      75%  { transform: scale(0.97) rotate(-0.5deg); }
+      90%  { transform: scale(1.02) rotate(0.3deg); }
+      100% { transform: scale(1)    rotate(0deg);    opacity: 1; }
+    }
+    @keyframes borderPulse {
+      0%, 100% { box-shadow: 0 12px 56px rgba(0,0,0,0.85), 0 0 40px rgba(239,68,68,0.2); }
+      50%       { box-shadow: 0 12px 56px rgba(0,0,0,0.85), 0 0 80px rgba(239,68,68,0.45); }
+    }
+    @keyframes dangerPulse {
+      0%, 100% { border-color: #ef4444; box-shadow: 0 0 32px rgba(239,68,68,0.7), 0 0 80px rgba(239,68,68,0.3); }
+      50%       { border-color: #f97316; box-shadow: 0 0 48px rgba(249,115,22,0.8), 0 0 100px rgba(249,115,22,0.35); }
+    }
+    @keyframes fallbackBounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50%       { transform: translateY(-10px) scale(1.1); }
+    }
+    @keyframes beerFloat {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50%       { transform: translateY(-6px) scale(1.06); }
     }
     @keyframes bounce {
-      0%   { transform: scale(0.95) translateY(6px); }
-      50%  { transform: scale(1.1)  translateY(-12px); }
-      100% { transform: scale(0.95) translateY(6px); }
+      0%   { transform: scale(0.9) translateY(6px); }
+      50%  { transform: scale(1.18) translateY(-14px); }
+      100% { transform: scale(0.9) translateY(6px); }
+    }
+    @keyframes emojifall {
+      0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+      85%  { opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
     }
   </style>
 </head>
@@ -331,17 +391,24 @@
 </div>
 
 <!-- ═══════════════════════════════════════
+     POPUP FLASH OVERLAY
+════════════════════════════════════════ -->
+<div id="popup-flash"></div>
+
+<!-- ═══════════════════════════════════════
      POPUP : 飲み
 ════════════════════════════════════════ -->
 <div id="popup" class="hidden">
   <div class="popup-inner">
+    <div class="popup-verdict">⚠️ 判　決 ⚠️</div>
     <img id="drinker-photo" class="popup-photo" alt="">
-    <div class="popup-beer">🍺</div>
-    <span class="popup-drink">飲み！</span>
+    <div id="popup-fallback-icon" class="popup-fallback-icon">🍺</div>
     <div class="popup-who">
       <strong id="drinker-name"></strong>
-      が飲みます！
+      <div class="popup-who-sub">が飲みます！！</div>
     </div>
+    <span class="popup-drink">飲　み！</span>
+    <div class="popup-beers">🍺 🍻 🍺 🍻 🍺</div>
   </div>
   <button id="retry-btn" class="fixed-btn">もう一度！</button>
 </div>
@@ -798,16 +865,43 @@ function onAnimDone() {
       $('drinker-name').textContent = players[drinker];
 
       // 写真があればポップアップに表示
-      const photoEl = $('drinker-photo');
+      const photoEl    = $('drinker-photo');
+      const fallbackEl = $('popup-fallback-icon');
       if (playerPhotos[drinker]) {
         photoEl.src = playerPhotos[drinker];
         photoEl.classList.add('show');
+        fallbackEl.style.display = 'none';
       } else {
         photoEl.classList.remove('show');
+        fallbackEl.style.display = '';
       }
 
+      // 画面フラッシュ
+      const flash = $('popup-flash');
+      flash.classList.remove('active');
+      void flash.offsetWidth; // reflow
+      flash.classList.add('active');
+
       popup.classList.remove('hidden');
+
+      // 落下エモジ演出
+      spawnFallingEmojis();
     }, 500);
+  }
+}
+
+function spawnFallingEmojis() {
+  const EMOJIS = ['🍺', '🍻', '😱', '💀', '🍺', '🍺', '😭'];
+  for (let i = 0; i < 22; i++) {
+    setTimeout(() => {
+      const el  = document.createElement('div');
+      const sz  = 20 + Math.random() * 26;
+      const dur = 2 + Math.random() * 2;
+      el.textContent = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+      el.style.cssText = `position:fixed;top:-60px;left:${Math.random()*100}vw;font-size:${sz}px;pointer-events:none;z-index:300;animation:emojifall ${dur}s linear forwards;`;
+      document.body.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }, Math.random() * 1800);
   }
 }
 
