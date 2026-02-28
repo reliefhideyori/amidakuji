@@ -107,6 +107,16 @@
       position: relative;
     }
     .avatar-wrap:active { transform: scale(0.92); }
+
+    /* ファイル入力をアバター全体に透明オーバーレイとして配置 */
+    .av-file-input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+
     .avatar-wrap.has-photo {
       border: 3px solid #f97316;
       box-shadow: 0 0 16px rgba(249, 115, 22, 0.45);
@@ -349,36 +359,36 @@
       <div class="avatar-wrap" id="av-wrap0">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img0" alt="">
+        <input id="av-file0" type="file" accept="image/*" class="av-file-input">
       </div>
       <input id="p0" class="input-field" type="text" value="プレイヤー1" autocomplete="off">
-      <input id="av-file0" type="file" accept="image/*" style="display:none">
     </div>
 
     <div class="player-row">
       <div class="avatar-wrap" id="av-wrap1">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img1" alt="">
+        <input id="av-file1" type="file" accept="image/*" class="av-file-input">
       </div>
       <input id="p1" class="input-field" type="text" value="プレイヤー2" autocomplete="off">
-      <input id="av-file1" type="file" accept="image/*" style="display:none">
     </div>
 
     <div class="player-row">
       <div class="avatar-wrap" id="av-wrap2">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img2" alt="">
+        <input id="av-file2" type="file" accept="image/*" class="av-file-input">
       </div>
       <input id="p2" class="input-field" type="text" value="プレイヤー3" autocomplete="off">
-      <input id="av-file2" type="file" accept="image/*" style="display:none">
     </div>
 
     <div class="player-row">
       <div class="avatar-wrap" id="av-wrap3">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img3" alt="">
+        <input id="av-file3" type="file" accept="image/*" class="av-file-input">
       </div>
       <input id="p3" class="input-field" type="text" value="プレイヤー4" autocomplete="off">
-      <input id="av-file3" type="file" accept="image/*" style="display:none">
     </div>
 
   </div>
@@ -453,14 +463,11 @@ const ctx         = canvas.getContext('2d');
 // ════════════════════════════════════════
 //  CAMERA BUTTON SETUP
 // ════════════════════════════════════════
+// iOS Safari 対応: file input をアバター上の透明オーバーレイとして配置することで
+// ユーザーのタップが直接 file input に届き、確実にファイルピッカーが起動する
 for (let i = 0; i < NUM; i++) {
-  const avWrap   = $(`av-wrap${i}`);
+  const avWrap    = $(`av-wrap${i}`);
   const fileInput = $(`av-file${i}`);
-
-  // iOS Safari: overflow:auto コンテナ内の file input は change が発火しないため body へ移動
-  document.body.appendChild(fileInput);
-
-  avWrap.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -480,7 +487,7 @@ for (let i = 0; i < NUM; i++) {
       img.onload = () => { playerImages[i] = img; };
       img.src = dataURL;
 
-      // 読み込み完了後にリセット（同じファイルを再選択できるよう）
+      // 同じファイルを再選択できるようリセット
       fileInput.value = '';
     };
     reader.readAsDataURL(file);
