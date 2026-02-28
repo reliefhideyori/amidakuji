@@ -239,11 +239,15 @@
                  borderPulse 2s ease-in-out 0.6s infinite;
     }
     .popup-verdict {
-      font-size: 13px;
+      display: inline-block;
+      font-size: 20px;
       font-weight: bold;
-      letter-spacing: 4px;
+      letter-spacing: 6px;
       color: #ef4444;
-      margin-bottom: 14px;
+      border: 2px solid rgba(239, 68, 68, 0.6);
+      border-radius: 6px;
+      padding: 4px 14px;
+      margin-bottom: 16px;
     }
     .popup-photo {
       width: 200px;
@@ -266,23 +270,24 @@
     .popup-who { margin-bottom: 8px; }
     .popup-who strong {
       display: block;
-      font-size: 42px;
+      font-size: 44px;
       color: #fff;
       letter-spacing: 1px;
       text-shadow: 0 0 20px rgba(239, 68, 68, 0.7), 0 2px 8px rgba(0, 0, 0, 0.6);
     }
     .popup-who-sub {
-      font-size: 15px;
-      color: #94a3b8;
+      font-size: 16px;
+      color: #cbd5e1;
       margin-top: 3px;
     }
     .popup-drink {
       display: block;
-      font-size: 68px;
+      font-size: 72px;
       font-weight: bold;
-      color: #ef4444;
-      letter-spacing: 4px;
-      text-shadow: 0 0 28px rgba(239, 68, 68, 0.9), 0 0 64px rgba(239, 68, 68, 0.4);
+      color: #fbbf24;
+      letter-spacing: 0;
+      text-shadow: 0 0 32px rgba(251, 191, 36, 0.9), 0 0 72px rgba(251, 191, 36, 0.4);
+      -webkit-text-stroke: 1px rgba(249, 115, 22, 0.5);
       animation: bounce 0.9s ease-in-out infinite;
       margin-bottom: 10px;
     }
@@ -407,7 +412,7 @@
       <strong id="drinker-name"></strong>
       <div class="popup-who-sub">が飲みます！！</div>
     </div>
-    <span class="popup-drink">飲　み！</span>
+    <span class="popup-drink">飲み！</span>
     <div class="popup-beers">🍺 🍻 🍺 🍻 🍺</div>
   </div>
   <button id="retry-btn" class="fixed-btn">もう一度！</button>
