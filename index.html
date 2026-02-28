@@ -457,6 +457,9 @@ for (let i = 0; i < NUM; i++) {
   const avWrap   = $(`av-wrap${i}`);
   const fileInput = $(`av-file${i}`);
 
+  // iOS Safari: overflow:auto コンテナ内の file input は change が発火しないため body へ移動
+  document.body.appendChild(fileInput);
+
   avWrap.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', (e) => {
@@ -476,10 +479,11 @@ for (let i = 0; i < NUM; i++) {
       const img = new Image();
       img.onload = () => { playerImages[i] = img; };
       img.src = dataURL;
+
+      // 読み込み完了後にリセット（同じファイルを再選択できるよう）
+      fileInput.value = '';
     };
     reader.readAsDataURL(file);
-    // 同じファイルを再選択できるようリセット
-    fileInput.value = '';
   });
 }
 
