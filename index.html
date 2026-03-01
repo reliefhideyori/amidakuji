@@ -363,7 +363,7 @@
       <div class="avatar-wrap" id="av-wrap0">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img0" alt="">
-        <input id="av-file0" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="av-file-input">
+        <input id="av-file0" type="file" accept="image/*" class="av-file-input">
       </div>
       <input id="p0" class="input-field" type="text" value="プレイヤー1" autocomplete="off">
     </div>
@@ -372,7 +372,7 @@
       <div class="avatar-wrap" id="av-wrap1">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img1" alt="">
-        <input id="av-file1" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="av-file-input">
+        <input id="av-file1" type="file" accept="image/*" class="av-file-input">
       </div>
       <input id="p1" class="input-field" type="text" value="プレイヤー2" autocomplete="off">
     </div>
@@ -381,7 +381,7 @@
       <div class="avatar-wrap" id="av-wrap2">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img2" alt="">
-        <input id="av-file2" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="av-file-input">
+        <input id="av-file2" type="file" accept="image/*" class="av-file-input">
       </div>
       <input id="p2" class="input-field" type="text" value="プレイヤー3" autocomplete="off">
     </div>
@@ -390,7 +390,7 @@
       <div class="avatar-wrap" id="av-wrap3">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img3" alt="">
-        <input id="av-file3" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="av-file-input">
+        <input id="av-file3" type="file" accept="image/*" class="av-file-input">
       </div>
       <input id="p3" class="input-field" type="text" value="プレイヤー4" autocomplete="off">
     </div>
@@ -468,16 +468,16 @@ const ctx         = canvas.getContext('2d');
 //  CAMERA BUTTON SETUP
 // ════════════════════════════════════════
 // iOS Safari 対応:
-//   - <label for="av-fileX"> がタップを受け取り、画面外の file input を起動
-//   - overflow:hidden コンテナ内の file input は iOS Safari でタップ不可のため
-//     file input は input-list の末尾（overflow:hidden の外）に配置済み
+//   - file input は avatar-wrap 内に position:absolute で配置しユーザーが直接タップ
+//   - accept="image/*" で HEIC をネイティブ受け取り（JPEG変換を強制しない）
+//     ※ accept に HEIC を含めないと iOS が非同期変換を試み空ファイルが返ってくる
 for (let i = 0; i < NUM; i++) {
   const avWrap    = $(`av-wrap${i}`);
   const fileInput = $(`av-file${i}`);
 
   fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file || file.size === 0) return;
 
     // iOS PHPicker (写真ライブラリ) は HEIC→JPEG 変換などを非同期で行うため
     // file.arrayBuffer() でデータ準備完了まで待機してから blob URL を生成する
