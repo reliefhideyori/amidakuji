@@ -454,6 +454,12 @@ let colX         = [];
 let topY, bottomY;
 let rowY         = [];
 
+// ── ビックリ演出: ゴール直前すり替え ──────────────────
+let swapHappens   = false; // 50% で発動
+let swapDrinkIdx  = -1;    // 飲み経路のプレイヤー番号
+let swapVictimIdx = -1;    // すり替わる別プレイヤー番号
+const SWAP_AT     = 0.88;  // 全体の 88% 地点で発動（ゴール直前）
+
 // ════════════════════════════════════════
 //  DOM
 // ════════════════════════════════════════
@@ -467,36 +473,81 @@ const ctx         = canvas.getContext('2d');
 // ════════════════════════════════════════
 //  CAMERA BUTTON SETUP
 // ════════════════════════════════════════
-// iOS Safari 対応:
-//   - file input は avatar-wrap 内に position:absolute で配置しユーザーが直接タップ
-//   - accept="image/*" で HEIC をネイティブ受け取り（JPEG変換を強制しない）
-//   - async/await + arrayBuffer() を使わない:
-//     PHPicker (別プロセス動作) のファイルは arrayBuffer() Promise が
-//     resolve も reject もせず永久に止まる iOS バグがある。
-//     URL.createObjectURL() は同期的に URL を返し、画像データは img.src
-//     セット後に遅延ロードされるため PHPicker でも正常に動作する。
+// iOS Safari 既知バグ:
+//   #input-screen は overflow-y:auto のスクロールコンテナ。
+//   このコンテナ内にある input[type=file] は PHPicker (写真ライブラリ) の
+//   change イベントを受け取れない（カメラ・ファイル選択は別経路なので動く）。
+//   → 各 file input を document.body へ移動して overflow コンテナから脱出。
+//   → avWrap タップ → fileInput.click() で picker を起動する方式に戻す。
+
+// 診断トースト（どこで止まっているか画面上で確認）
+function _dbg(msg) {
+  const d = document.createElement('div');
+  d.textContent = msg;
+  Object.assign(d.style, {
+    position:'fixed', bottom:'90px', left:'50%', transform:'translateX(-50%)',
+    background:'rgba(10,10,30,0.92)', color:'#a78bfa', padding:'6px 14px',
+    borderRadius:'16px', zIndex:'9999', fontSize:'12px',
+    fontFamily:'monospace', pointerEvents:'none', whiteSpace:'nowrap',
+    border:'1px solid #7c3aed', boxShadow:'0 2px 8px rgba(0,0,0,0.6)'
+  });
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 3500);
+}
+
 for (let i = 0; i < NUM; i++) {
   const avWrap    = $(`av-wrap${i}`);
   const fileInput = $(`av-file${i}`);
 
+  // overflow-y:auto コンテナから脱出: body 直下・画面外に配置
+  Object.assign(fileInput.style, {
+    position:'fixed', top:'-9999px', left:'-9999px',
+    width:'1px', height:'1px', opacity:'0', pointerEvents:'none'
+  });
+  document.body.appendChild(fileInput);
+
+  // アバタータップで picker を起動（ユーザージェスチャー内なので iOS でも動く）
+  avWrap.addEventListener('click', function() { fileInput.click(); });
+
   fileInput.addEventListener('change', function(e) {
+    _dbg('change! files:' + e.target.files.length);
+
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) { _dbg('file=null'); return; }
+
+    _dbg('file OK ' + Math.round(file.size / 1024) + 'KB');
 
     const prev = playerPhotos[i];
     if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
 
-    const url = URL.createObjectURL(file);
-    const avImg = $(`av-img${i}`);
-    avImg.src = url;
-    playerPhotos[i] = url;
-    avWrap.classList.add('has-photo');   // 同期的に即座に反映
+    let url;
+    try {
+      url = URL.createObjectURL(file);
+    } catch (err) {
+      // createObjectURL が使えない場合は FileReader にフォールバック
+      _dbg('URL.create失敗→FileReader');
+      const reader = new FileReader();
+      reader.onload = function() {
+        _dbg('FileReader完了');
+        applyPhoto(reader.result);
+      };
+      reader.onerror = function() { _dbg('FileReader ERR'); };
+      reader.readAsDataURL(file);
+      return;
+    }
 
-    const img = new Image();
-    img.src = url;
-    playerImages[i] = img;
+    applyPhoto(url);
 
-    setTimeout(() => { fileInput.value = ''; }, 500);
+    function applyPhoto(src) {
+      const avImg = $(`av-img${i}`);
+      avImg.src = src;
+      playerPhotos[i] = src;
+      avWrap.classList.add('has-photo');
+      playerImages[i] = new Image();
+      playerImages[i].src = src;
+      _dbg('完了!');
+      setTimeout(() => { fileInput.value = ''; }, 500);
+    }
   });
 }
 
@@ -763,8 +814,13 @@ function drawTrail(idx, segs, total, progress) {
 function drawNameBadge(idx, segs, total, progress) {
   const { pts } = ppaths[idx];
   const pos  = getPosAlongPath(pts, segs, total, progress);
-  const name = players[idx];
-  const img  = playerImages[idx];
+
+  // ── ゴール直前すり替え: 飲みの人のバッジを別人に差し替え ─────
+  const di   = (swapHappens && progress >= SWAP_AT && idx === swapDrinkIdx)
+               ? swapVictimIdx : idx;
+  const name = players[di];
+  const img  = playerImages[di];
+  const col  = COLORS[di];
 
   const FONT_SIZE = 10;
   ctx.font = `bold ${FONT_SIZE}px -apple-system, 'Hiragino Sans', sans-serif`;
@@ -772,19 +828,34 @@ function drawNameBadge(idx, segs, total, progress) {
 
   if (img && img.complete && img.naturalWidth > 0) {
     // ── 写真 + 名前バッジ ──────────────────
-    const PHOTO_R  = 28;           // 写真の半径
+    const PHOTO_R  = 28;
     const PHOTO_D  = PHOTO_R * 2;
-    const PILL_PX  = 6;            // 名前ピルの左右パディング
-    const PILL_PY  = 3;            // 名前ピルの上下パディング
+    const PILL_PX  = 6;
+    const PILL_PY  = 3;
     const pillW    = Math.max(PHOTO_D + 4, textW + PILL_PX * 2);
     const pillH    = FONT_SIZE + PILL_PY * 2;
-    const GAP      = 2;            // 写真とピルの間隔
+    const GAP      = 2;
     const TOTAL_H  = PHOTO_D + GAP + pillH;
 
-    // 全体の垂直中心 = pos.y
     const photoTopY = pos.y - TOTAL_H / 2;
     const photoCY   = photoTopY + PHOTO_R;
     const pillTopY  = photoTopY + PHOTO_D + GAP;
+
+    // ── すり替え発動フラッシュ（白い輝きリング）
+    if (swapHappens && idx === swapDrinkIdx && progress >= SWAP_AT && progress < SWAP_AT + 0.07) {
+      const t = (progress - SWAP_AT) / 0.07;          // 0→1 で消える
+      const a = Math.max(0, 1 - t);
+      ctx.save();
+      ctx.globalAlpha = a * 0.9;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth   = 4 + 6 * (1 - t);              // 線が細くなりながら消える
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur  = 20 * a;
+      ctx.beginPath();
+      ctx.arc(pos.x, photoCY, PHOTO_R + 10 + 8 * (1 - t), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // ── 写真（丸く切り抜き）
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
@@ -797,8 +868,8 @@ function drawNameBadge(idx, segs, total, progress) {
     ctx.restore();
     ctx.shadowBlur = 0;
 
-    // 写真の枠線（プレイヤーカラー）
-    ctx.strokeStyle = COLORS[idx];
+    // 写真の枠線
+    ctx.strokeStyle = col;
     ctx.lineWidth   = 2;
     ctx.beginPath();
     ctx.arc(pos.x, photoCY, PHOTO_R, 0, Math.PI * 2);
@@ -807,7 +878,7 @@ function drawNameBadge(idx, segs, total, progress) {
     // ── 名前ピル
     ctx.shadowColor = 'rgba(0,0,0,0.6)';
     ctx.shadowBlur  = 5;
-    ctx.fillStyle   = COLORS[idx];
+    ctx.fillStyle   = col;
     fillRoundRect(pos.x - pillW / 2, pillTopY, pillW, pillH, pillH / 2);
     ctx.shadowBlur = 0;
 
@@ -817,7 +888,7 @@ function drawNameBadge(idx, segs, total, progress) {
     ctx.fillText(name, pos.x, pillTopY + pillH / 2);
 
   } else {
-    // ── 写真なし：テキストバッジのみ（従来どおり）
+    // ── 写真なし：テキストバッジのみ ──────────────────
     const padX = 8, padY = 5;
     const w = textW + padX * 2;
     const h = FONT_SIZE + padY * 2;
@@ -825,9 +896,23 @@ function drawNameBadge(idx, segs, total, progress) {
     const bx = pos.x - w / 2;
     const by = pos.y - h / 2;
 
+    // ── すり替え発動フラッシュ（写真なしの場合）
+    if (swapHappens && idx === swapDrinkIdx && progress >= SWAP_AT && progress < SWAP_AT + 0.07) {
+      const t = (progress - SWAP_AT) / 0.07;
+      const a = Math.max(0, 1 - t);
+      ctx.save();
+      ctx.globalAlpha = a * 0.9;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth   = 3 + 4 * (1 - t);
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur  = 16 * a;
+      fillRoundRect(bx - 6, by - 6, w + 12, h + 12, r + 6);
+      ctx.restore();
+    }
+
     ctx.shadowColor = 'rgba(0,0,0,0.6)';
     ctx.shadowBlur  = 8;
-    ctx.fillStyle   = COLORS[idx];
+    ctx.fillStyle   = col;
     fillRoundRect(bx, by, w, h, r);
     ctx.shadowBlur = 0;
 
@@ -847,6 +932,19 @@ function runAnimation() {
   buildPaths();
   animStart = null;
   if (rafId) cancelAnimationFrame(rafId);
+
+  // ── ゴール直前すり替え演出の抽選 ──────────────────
+  swapHappens   = false;
+  swapDrinkIdx  = -1;
+  swapVictimIdx = -1;
+  for (let k = 0; k < NUM; k++) {
+    if (goals[ppaths[k].endCol] === '飲み') { swapDrinkIdx = k; break; }
+  }
+  if (swapDrinkIdx !== -1 && Math.random() < 0.5) {
+    swapHappens   = true;
+    const others  = Array.from({ length: NUM }, (_, k) => k).filter(k => k !== swapDrinkIdx);
+    swapVictimIdx = others[Math.floor(Math.random() * others.length)];
+  }
 
   $('names-top').style.visibility = 'hidden';
 
@@ -881,6 +979,8 @@ function onAnimDone() {
   for (let i = 0; i < NUM; i++) {
     if (goals[ppaths[i].endCol] === '飲み') { drinker = i; break; }
   }
+  // すり替え演出が発動した場合は犠牲者がポップアップに登場
+  if (swapHappens && drinker !== -1) drinker = swapVictimIdx;
 
   if (drinker !== -1) {
     setTimeout(() => {
