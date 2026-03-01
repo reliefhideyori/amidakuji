@@ -454,6 +454,12 @@ let colX         = [];
 let topY, bottomY;
 let rowY         = [];
 
+// ── ビックリ演出: ゴール直前すり替え ──────────────────
+let swapHappens   = false; // 50% で発動
+let swapDrinkIdx  = -1;    // 飲み経路のプレイヤー番号
+let swapVictimIdx = -1;    // すり替わる別プレイヤー番号
+const SWAP_AT     = 0.88;  // 全体の 88% 地点で発動（ゴール直前）
+
 // ════════════════════════════════════════
 //  DOM
 // ════════════════════════════════════════
@@ -808,8 +814,13 @@ function drawTrail(idx, segs, total, progress) {
 function drawNameBadge(idx, segs, total, progress) {
   const { pts } = ppaths[idx];
   const pos  = getPosAlongPath(pts, segs, total, progress);
-  const name = players[idx];
-  const img  = playerImages[idx];
+
+  // ── ゴール直前すり替え: 飲みの人のバッジを別人に差し替え ─────
+  const di   = (swapHappens && progress >= SWAP_AT && idx === swapDrinkIdx)
+               ? swapVictimIdx : idx;
+  const name = players[di];
+  const img  = playerImages[di];
+  const col  = COLORS[di];
 
   const FONT_SIZE = 10;
   ctx.font = `bold ${FONT_SIZE}px -apple-system, 'Hiragino Sans', sans-serif`;
@@ -817,19 +828,34 @@ function drawNameBadge(idx, segs, total, progress) {
 
   if (img && img.complete && img.naturalWidth > 0) {
     // ── 写真 + 名前バッジ ──────────────────
-    const PHOTO_R  = 28;           // 写真の半径
+    const PHOTO_R  = 28;
     const PHOTO_D  = PHOTO_R * 2;
-    const PILL_PX  = 6;            // 名前ピルの左右パディング
-    const PILL_PY  = 3;            // 名前ピルの上下パディング
+    const PILL_PX  = 6;
+    const PILL_PY  = 3;
     const pillW    = Math.max(PHOTO_D + 4, textW + PILL_PX * 2);
     const pillH    = FONT_SIZE + PILL_PY * 2;
-    const GAP      = 2;            // 写真とピルの間隔
+    const GAP      = 2;
     const TOTAL_H  = PHOTO_D + GAP + pillH;
 
-    // 全体の垂直中心 = pos.y
     const photoTopY = pos.y - TOTAL_H / 2;
     const photoCY   = photoTopY + PHOTO_R;
     const pillTopY  = photoTopY + PHOTO_D + GAP;
+
+    // ── すり替え発動フラッシュ（白い輝きリング）
+    if (swapHappens && idx === swapDrinkIdx && progress >= SWAP_AT && progress < SWAP_AT + 0.07) {
+      const t = (progress - SWAP_AT) / 0.07;          // 0→1 で消える
+      const a = Math.max(0, 1 - t);
+      ctx.save();
+      ctx.globalAlpha = a * 0.9;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth   = 4 + 6 * (1 - t);              // 線が細くなりながら消える
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur  = 20 * a;
+      ctx.beginPath();
+      ctx.arc(pos.x, photoCY, PHOTO_R + 10 + 8 * (1 - t), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // ── 写真（丸く切り抜き）
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
@@ -842,8 +868,8 @@ function drawNameBadge(idx, segs, total, progress) {
     ctx.restore();
     ctx.shadowBlur = 0;
 
-    // 写真の枠線（プレイヤーカラー）
-    ctx.strokeStyle = COLORS[idx];
+    // 写真の枠線
+    ctx.strokeStyle = col;
     ctx.lineWidth   = 2;
     ctx.beginPath();
     ctx.arc(pos.x, photoCY, PHOTO_R, 0, Math.PI * 2);
@@ -852,7 +878,7 @@ function drawNameBadge(idx, segs, total, progress) {
     // ── 名前ピル
     ctx.shadowColor = 'rgba(0,0,0,0.6)';
     ctx.shadowBlur  = 5;
-    ctx.fillStyle   = COLORS[idx];
+    ctx.fillStyle   = col;
     fillRoundRect(pos.x - pillW / 2, pillTopY, pillW, pillH, pillH / 2);
     ctx.shadowBlur = 0;
 
@@ -862,7 +888,7 @@ function drawNameBadge(idx, segs, total, progress) {
     ctx.fillText(name, pos.x, pillTopY + pillH / 2);
 
   } else {
-    // ── 写真なし：テキストバッジのみ（従来どおり）
+    // ── 写真なし：テキストバッジのみ ──────────────────
     const padX = 8, padY = 5;
     const w = textW + padX * 2;
     const h = FONT_SIZE + padY * 2;
@@ -870,9 +896,23 @@ function drawNameBadge(idx, segs, total, progress) {
     const bx = pos.x - w / 2;
     const by = pos.y - h / 2;
 
+    // ── すり替え発動フラッシュ（写真なしの場合）
+    if (swapHappens && idx === swapDrinkIdx && progress >= SWAP_AT && progress < SWAP_AT + 0.07) {
+      const t = (progress - SWAP_AT) / 0.07;
+      const a = Math.max(0, 1 - t);
+      ctx.save();
+      ctx.globalAlpha = a * 0.9;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth   = 3 + 4 * (1 - t);
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur  = 16 * a;
+      fillRoundRect(bx - 6, by - 6, w + 12, h + 12, r + 6);
+      ctx.restore();
+    }
+
     ctx.shadowColor = 'rgba(0,0,0,0.6)';
     ctx.shadowBlur  = 8;
-    ctx.fillStyle   = COLORS[idx];
+    ctx.fillStyle   = col;
     fillRoundRect(bx, by, w, h, r);
     ctx.shadowBlur = 0;
 
@@ -892,6 +932,19 @@ function runAnimation() {
   buildPaths();
   animStart = null;
   if (rafId) cancelAnimationFrame(rafId);
+
+  // ── ゴール直前すり替え演出の抽選 ──────────────────
+  swapHappens   = false;
+  swapDrinkIdx  = -1;
+  swapVictimIdx = -1;
+  for (let k = 0; k < NUM; k++) {
+    if (goals[ppaths[k].endCol] === '飲み') { swapDrinkIdx = k; break; }
+  }
+  if (swapDrinkIdx !== -1 && Math.random() < 0.5) {
+    swapHappens   = true;
+    const others  = Array.from({ length: NUM }, (_, k) => k).filter(k => k !== swapDrinkIdx);
+    swapVictimIdx = others[Math.floor(Math.random() * others.length)];
+  }
 
   $('names-top').style.visibility = 'hidden';
 
@@ -926,6 +979,8 @@ function onAnimDone() {
   for (let i = 0; i < NUM; i++) {
     if (goals[ppaths[i].endCol] === '飲み') { drinker = i; break; }
   }
+  // すり替え演出が発動した場合は犠牲者がポップアップに登場
+  if (swapHappens && drinker !== -1) drinker = swapVictimIdx;
 
   if (drinker !== -1) {
     setTimeout(() => {
