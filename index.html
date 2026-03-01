@@ -98,7 +98,8 @@
       border: 2px dashed #475569;
       background: #0f0f23;
       cursor: pointer;
-      overflow: hidden;
+      /* overflow:hidden を使わない: iOS Safari では overflow:hidden 内の file input が
+         touch イベントを受け取れないため、画像側で border-radius を適用する */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -108,11 +109,12 @@
     }
     .avatar-wrap:active { transform: scale(0.92); }
 
-    /* ファイル入力: avatar-wrap 内に透明オーバーレイとして配置
-       ユーザーが直接 file input をタップするため iOS Safari で確実に動作する */
+    /* ファイル入力: avatar-wrap 内に透明オーバーレイとして配置（overflow:hidden なし）
+       iOS Safari で確実に動作させるため直接タップ可能にする */
     .av-file-input {
       position: absolute;
       inset: 0;
+      border-radius: 50%;
       opacity: 0;
       cursor: pointer;
       z-index: 2;
@@ -126,6 +128,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      border-radius: 50%;
       display: none;
       pointer-events: none;
     }
