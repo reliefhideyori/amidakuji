@@ -363,7 +363,7 @@
       <div class="avatar-wrap" id="av-wrap0">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img0" alt="">
-        <input id="av-file0" type="file" accept="image/*" class="av-file-input">
+        <input id="av-file0" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="av-file-input">
       </div>
       <input id="p0" class="input-field" type="text" value="プレイヤー1" autocomplete="off">
     </div>
@@ -372,7 +372,7 @@
       <div class="avatar-wrap" id="av-wrap1">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img1" alt="">
-        <input id="av-file1" type="file" accept="image/*" class="av-file-input">
+        <input id="av-file1" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="av-file-input">
       </div>
       <input id="p1" class="input-field" type="text" value="プレイヤー2" autocomplete="off">
     </div>
@@ -381,7 +381,7 @@
       <div class="avatar-wrap" id="av-wrap2">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img2" alt="">
-        <input id="av-file2" type="file" accept="image/*" class="av-file-input">
+        <input id="av-file2" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="av-file-input">
       </div>
       <input id="p2" class="input-field" type="text" value="プレイヤー3" autocomplete="off">
     </div>
@@ -390,7 +390,7 @@
       <div class="avatar-wrap" id="av-wrap3">
         <span class="cam-icon">📷</span>
         <img class="av-img" id="av-img3" alt="">
-        <input id="av-file3" type="file" accept="image/*" class="av-file-input">
+        <input id="av-file3" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="av-file-input">
       </div>
       <input id="p3" class="input-field" type="text" value="プレイヤー4" autocomplete="off">
     </div>
@@ -478,18 +478,24 @@ for (let i = 0; i < NUM; i++) {
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataURL = ev.target.result;
-      playerPhotos[i] = dataURL;
-      $(`av-img${i}`).src = dataURL;
+    // FileReader は iOS PHPicker (写真ライブラリ) で onload が発火しない既知バグがあるため
+    // createObjectURL を使用する
+    const objectURL = URL.createObjectURL(file);
+    const avImg = $(`av-img${i}`);
+    avImg.onload = () => {
+      avImg.onload = null;
+      playerPhotos[i] = objectURL;
       avWrap.classList.add('has-photo');
       const img = new Image();
-      img.onload = () => { playerImages[i] = img; };
-      img.src = dataURL;
+      img.src = objectURL;
+      playerImages[i] = img;
       fileInput.value = '';
     };
-    reader.readAsDataURL(file);
+    avImg.onerror = () => {
+      avImg.onerror = null;
+      URL.revokeObjectURL(objectURL);
+    };
+    avImg.src = objectURL;
   });
 }
 
