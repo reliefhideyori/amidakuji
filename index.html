@@ -156,11 +156,44 @@
     .names-row,
     .goals-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, 1fr); /* JS で上書き */
       flex-shrink: 0;
     }
     .names-row { height: 100px; } /* 写真 + 名前 */
     .goals-row { height: 56px; }
+
+    /* ─────────────────────────────────────
+       人数選択画面
+    ───────────────────────────────────── */
+    .select-sub {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 18px;
+      margin-bottom: 28px;
+      letter-spacing: 1px;
+    }
+    .num-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 0 32px;
+      flex: 1;
+      justify-content: center;
+    }
+    .num-btn {
+      width: 100%;
+      padding: 18px 0;
+      background: rgba(15, 15, 35, 0.85);
+      border: 2px solid #334155;
+      border-radius: 20px;
+      color: #e2e8f0;
+      font-size: 26px;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 6px;
+      transition: border-color 0.15s, color 0.15s, transform 0.1s;
+    }
+    .num-btn:active { transform: scale(0.96); border-color: #f97316; color: #f97316; }
 
     .name-cell {
       display: flex;
@@ -353,49 +386,26 @@
 <body>
 
 <!-- ═══════════════════════════════════════
+     SCREEN 0 : 人数選択
+════════════════════════════════════════ -->
+<div id="select-screen" class="screen">
+  <h1 class="input-title">🍺 あみだくじ<br>飲みゲーム 🍺</h1>
+  <p class="select-sub">人数を選んでください</p>
+  <div class="num-btns">
+    <button class="num-btn" data-num="2">2人</button>
+    <button class="num-btn" data-num="3">3人</button>
+    <button class="num-btn" data-num="4">4人</button>
+    <button class="num-btn" data-num="5">5人</button>
+    <button class="num-btn" data-num="6">6人</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
      SCREEN 1 : 名前入力
 ════════════════════════════════════════ -->
-<div id="input-screen" class="screen">
-  <h1 class="input-title">🍺 あみだくじ<br>飲みゲーム 🍺</h1>
-  <div class="input-list">
-
-    <div class="player-row">
-      <div class="avatar-wrap" id="av-wrap0">
-        <span class="cam-icon">📷</span>
-        <img class="av-img" id="av-img0" alt="">
-        <input id="av-file0" type="file" accept="image/*" class="av-file-input">
-      </div>
-      <input id="p0" class="input-field" type="text" value="プレイヤー1" autocomplete="off">
-    </div>
-
-    <div class="player-row">
-      <div class="avatar-wrap" id="av-wrap1">
-        <span class="cam-icon">📷</span>
-        <img class="av-img" id="av-img1" alt="">
-        <input id="av-file1" type="file" accept="image/*" class="av-file-input">
-      </div>
-      <input id="p1" class="input-field" type="text" value="プレイヤー2" autocomplete="off">
-    </div>
-
-    <div class="player-row">
-      <div class="avatar-wrap" id="av-wrap2">
-        <span class="cam-icon">📷</span>
-        <img class="av-img" id="av-img2" alt="">
-        <input id="av-file2" type="file" accept="image/*" class="av-file-input">
-      </div>
-      <input id="p2" class="input-field" type="text" value="プレイヤー3" autocomplete="off">
-    </div>
-
-    <div class="player-row">
-      <div class="avatar-wrap" id="av-wrap3">
-        <span class="cam-icon">📷</span>
-        <img class="av-img" id="av-img3" alt="">
-        <input id="av-file3" type="file" accept="image/*" class="av-file-input">
-      </div>
-      <input id="p3" class="input-field" type="text" value="プレイヤー4" autocomplete="off">
-    </div>
-
-  </div>
+<div id="input-screen" class="screen hidden">
+  <h1 class="input-title">プレイヤーを<br>入力してください</h1>
+  <div class="input-list" id="input-list"></div>
   <button id="to-amida-btn" class="fixed-btn">あみだを作る！</button>
 </div>
 
@@ -436,17 +446,17 @@
 // ════════════════════════════════════════
 //  CONFIG
 // ════════════════════════════════════════
-const NUM     = 4;
+let   NUM     = 4;     // 人数選択画面で上書きされる
 const ROWS    = 12;
 const ANIM_MS = 12000; // 1/5 speed
-const COLORS  = ['#60a5fa', '#f472b6', '#34d399', '#fbbf24'];
+const COLORS  = ['#60a5fa', '#f472b6', '#34d399', '#fbbf24', '#a78bfa', '#fb7185'];
 
 // ════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════
-let players      = ['プレイヤー1', 'プレイヤー2', 'プレイヤー3', 'プレイヤー4'];
-let playerPhotos = [null, null, null, null]; // dataURL
-let playerImages = [null, null, null, null]; // HTMLImageElement
+let players      = []; // 人数選択後に初期化
+let playerPhotos = [];
+let playerImages = [];
 let bridges      = [];
 let goals        = [];
 let ppaths       = [];
@@ -464,11 +474,12 @@ const SWAP_AT     = 0.88;  // 全体の 88% 地点で発動（ゴール直前）
 //  DOM
 // ════════════════════════════════════════
 const $  = id => document.getElementById(id);
-const inputScreen = $('input-screen');
-const amidaScreen = $('amida-screen');
-const popup       = $('popup');
-const canvas      = $('amida-canvas');
-const ctx         = canvas.getContext('2d');
+const selectScreen = $('select-screen');
+const inputScreen  = $('input-screen');
+const amidaScreen  = $('amida-screen');
+const popup        = $('popup');
+const canvas       = $('amida-canvas');
+const ctx          = canvas.getContext('2d');
 
 // ════════════════════════════════════════
 //  CAMERA BUTTON SETUP
@@ -495,65 +506,103 @@ function _dbg(msg) {
   setTimeout(() => d.remove(), 3500);
 }
 
-for (let i = 0; i < NUM; i++) {
-  const avWrap    = $(`av-wrap${i}`);
-  const fileInput = $(`av-file${i}`);
+// ════════════════════════════════════════
+//  人数選択 → 入力画面への遷移
+// ════════════════════════════════════════
+function showInputScreen(num) {
+  NUM = num;
+  players      = Array.from({ length: NUM }, (_, i) => `プレイヤー${i + 1}`);
+  playerPhotos = Array(NUM).fill(null);
+  playerImages = Array(NUM).fill(null);
+  buildInputRows();
+  setupCameraButtons();
+  selectScreen.classList.add('hidden');
+  inputScreen.classList.remove('hidden');
+}
 
-  // overflow-y:auto コンテナから脱出: body 直下・画面外に配置
-  Object.assign(fileInput.style, {
-    position:'fixed', top:'-9999px', left:'-9999px',
-    width:'1px', height:'1px', opacity:'0', pointerEvents:'none'
-  });
-  document.body.appendChild(fileInput);
+function buildInputRows() {
+  const list = $('input-list');
+  list.innerHTML = '';
+  for (let i = 0; i < NUM; i++) {
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    row.innerHTML = `
+      <div class="avatar-wrap" id="av-wrap${i}">
+        <span class="cam-icon">📷</span>
+        <img class="av-img" id="av-img${i}" alt="">
+        <input id="av-file${i}" type="file" accept="image/*" class="av-file-input">
+      </div>
+      <input id="p${i}" class="input-field" type="text"
+             value="プレイヤー${i + 1}" autocomplete="off">
+    `;
+    list.appendChild(row);
+  }
+}
 
-  // アバタータップで picker を起動（ユーザージェスチャー内なので iOS でも動く）
-  avWrap.addEventListener('click', function() { fileInput.click(); });
+function setupCameraButtons() {
+  for (let i = 0; i < NUM; i++) {
+    const avWrap    = $(`av-wrap${i}`);
+    const fileInput = $(`av-file${i}`);
 
-  fileInput.addEventListener('change', function(e) {
-    _dbg('change! files:' + e.target.files.length);
+    // overflow-y:auto コンテナから脱出: body 直下・画面外に配置
+    Object.assign(fileInput.style, {
+      position:'fixed', top:'-9999px', left:'-9999px',
+      width:'1px', height:'1px', opacity:'0', pointerEvents:'none'
+    });
+    document.body.appendChild(fileInput);
 
-    const file = e.target.files[0];
-    if (!file) { _dbg('file=null'); return; }
+    // アバタータップで picker を起動（ユーザージェスチャー内なので iOS でも動く）
+    avWrap.addEventListener('click', function() { fileInput.click(); });
 
-    _dbg('file OK ' + Math.round(file.size / 1024) + 'KB');
+    fileInput.addEventListener('change', function(e) {
+      _dbg('change! files:' + e.target.files.length);
 
-    const prev = playerPhotos[i];
-    if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+      const file = e.target.files[0];
+      if (!file) { _dbg('file=null'); return; }
 
-    let url;
-    try {
-      url = URL.createObjectURL(file);
-    } catch (err) {
-      // createObjectURL が使えない場合は FileReader にフォールバック
-      _dbg('URL.create失敗→FileReader');
-      const reader = new FileReader();
-      reader.onload = function() {
-        _dbg('FileReader完了');
-        applyPhoto(reader.result);
-      };
-      reader.onerror = function() { _dbg('FileReader ERR'); };
-      reader.readAsDataURL(file);
-      return;
-    }
+      _dbg('file OK ' + Math.round(file.size / 1024) + 'KB');
 
-    applyPhoto(url);
+      const prev = playerPhotos[i];
+      if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
 
-    function applyPhoto(src) {
-      const avImg = $(`av-img${i}`);
-      avImg.src = src;
-      playerPhotos[i] = src;
-      avWrap.classList.add('has-photo');
-      playerImages[i] = new Image();
-      playerImages[i].src = src;
-      _dbg('完了!');
-      setTimeout(() => { fileInput.value = ''; }, 500);
-    }
-  });
+      let url;
+      try {
+        url = URL.createObjectURL(file);
+      } catch (err) {
+        _dbg('URL.create失敗→FileReader');
+        const reader = new FileReader();
+        reader.onload = function() {
+          _dbg('FileReader完了');
+          applyPhoto(reader.result);
+        };
+        reader.onerror = function() { _dbg('FileReader ERR'); };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      applyPhoto(url);
+
+      function applyPhoto(src) {
+        const avImg = $(`av-img${i}`);
+        avImg.src = src;
+        playerPhotos[i] = src;
+        avWrap.classList.add('has-photo');
+        playerImages[i] = new Image();
+        playerImages[i].src = src;
+        _dbg('完了!');
+        setTimeout(() => { fileInput.value = ''; }, 500);
+      }
+    });
+  }
 }
 
 // ════════════════════════════════════════
 //  EVENTS
 // ════════════════════════════════════════
+document.querySelectorAll('.num-btn').forEach(btn => {
+  btn.addEventListener('click', () => showInputScreen(+btn.dataset.num));
+});
+
 $('to-amida-btn').addEventListener('click', () => {
   for (let i = 0; i < NUM; i++) {
     const v = $(`p${i}`).value.trim();
@@ -667,6 +716,11 @@ function drawStatic() {
 //  RENDER NAME / GOAL LABELS
 // ════════════════════════════════════════
 function renderLabels() {
+  // グリッド列数を人数に合わせて動的設定
+  const cols = `repeat(${NUM}, 1fr)`;
+  $('names-top').style.gridTemplateColumns    = cols;
+  $('goals-bottom').style.gridTemplateColumns = cols;
+
   // 名前（上部）: 写真があれば写真＋名前
   const nt = $('names-top');
   nt.innerHTML = '';
