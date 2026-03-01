@@ -467,36 +467,81 @@ const ctx         = canvas.getContext('2d');
 // ════════════════════════════════════════
 //  CAMERA BUTTON SETUP
 // ════════════════════════════════════════
-// iOS Safari 対応:
-//   - file input は avatar-wrap 内に position:absolute で配置しユーザーが直接タップ
-//   - accept="image/*" で HEIC をネイティブ受け取り（JPEG変換を強制しない）
-//   - async/await + arrayBuffer() を使わない:
-//     PHPicker (別プロセス動作) のファイルは arrayBuffer() Promise が
-//     resolve も reject もせず永久に止まる iOS バグがある。
-//     URL.createObjectURL() は同期的に URL を返し、画像データは img.src
-//     セット後に遅延ロードされるため PHPicker でも正常に動作する。
+// iOS Safari 既知バグ:
+//   #input-screen は overflow-y:auto のスクロールコンテナ。
+//   このコンテナ内にある input[type=file] は PHPicker (写真ライブラリ) の
+//   change イベントを受け取れない（カメラ・ファイル選択は別経路なので動く）。
+//   → 各 file input を document.body へ移動して overflow コンテナから脱出。
+//   → avWrap タップ → fileInput.click() で picker を起動する方式に戻す。
+
+// 診断トースト（どこで止まっているか画面上で確認）
+function _dbg(msg) {
+  const d = document.createElement('div');
+  d.textContent = msg;
+  Object.assign(d.style, {
+    position:'fixed', bottom:'90px', left:'50%', transform:'translateX(-50%)',
+    background:'rgba(10,10,30,0.92)', color:'#a78bfa', padding:'6px 14px',
+    borderRadius:'16px', zIndex:'9999', fontSize:'12px',
+    fontFamily:'monospace', pointerEvents:'none', whiteSpace:'nowrap',
+    border:'1px solid #7c3aed', boxShadow:'0 2px 8px rgba(0,0,0,0.6)'
+  });
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 3500);
+}
+
 for (let i = 0; i < NUM; i++) {
   const avWrap    = $(`av-wrap${i}`);
   const fileInput = $(`av-file${i}`);
 
+  // overflow-y:auto コンテナから脱出: body 直下・画面外に配置
+  Object.assign(fileInput.style, {
+    position:'fixed', top:'-9999px', left:'-9999px',
+    width:'1px', height:'1px', opacity:'0', pointerEvents:'none'
+  });
+  document.body.appendChild(fileInput);
+
+  // アバタータップで picker を起動（ユーザージェスチャー内なので iOS でも動く）
+  avWrap.addEventListener('click', function() { fileInput.click(); });
+
   fileInput.addEventListener('change', function(e) {
+    _dbg('change! files:' + e.target.files.length);
+
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) { _dbg('file=null'); return; }
+
+    _dbg('file OK ' + Math.round(file.size / 1024) + 'KB');
 
     const prev = playerPhotos[i];
     if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
 
-    const url = URL.createObjectURL(file);
-    const avImg = $(`av-img${i}`);
-    avImg.src = url;
-    playerPhotos[i] = url;
-    avWrap.classList.add('has-photo');   // 同期的に即座に反映
+    let url;
+    try {
+      url = URL.createObjectURL(file);
+    } catch (err) {
+      // createObjectURL が使えない場合は FileReader にフォールバック
+      _dbg('URL.create失敗→FileReader');
+      const reader = new FileReader();
+      reader.onload = function() {
+        _dbg('FileReader完了');
+        applyPhoto(reader.result);
+      };
+      reader.onerror = function() { _dbg('FileReader ERR'); };
+      reader.readAsDataURL(file);
+      return;
+    }
 
-    const img = new Image();
-    img.src = url;
-    playerImages[i] = img;
+    applyPhoto(url);
 
-    setTimeout(() => { fileInput.value = ''; }, 500);
+    function applyPhoto(src) {
+      const avImg = $(`av-img${i}`);
+      avImg.src = src;
+      playerPhotos[i] = src;
+      avWrap.classList.add('has-photo');
+      playerImages[i] = new Image();
+      playerImages[i].src = src;
+      _dbg('完了!');
+      setTimeout(() => { fileInput.value = ''; }, 500);
+    }
   });
 }
 
