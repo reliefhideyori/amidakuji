@@ -470,42 +470,33 @@ const ctx         = canvas.getContext('2d');
 // iOS Safari 対応:
 //   - file input は avatar-wrap 内に position:absolute で配置しユーザーが直接タップ
 //   - accept="image/*" で HEIC をネイティブ受け取り（JPEG変換を強制しない）
-//     ※ accept に HEIC を含めないと iOS が非同期変換を試み空ファイルが返ってくる
+//   - async/await + arrayBuffer() を使わない:
+//     PHPicker (別プロセス動作) のファイルは arrayBuffer() Promise が
+//     resolve も reject もせず永久に止まる iOS バグがある。
+//     URL.createObjectURL() は同期的に URL を返し、画像データは img.src
+//     セット後に遅延ロードされるため PHPicker でも正常に動作する。
 for (let i = 0; i < NUM; i++) {
   const avWrap    = $(`av-wrap${i}`);
   const fileInput = $(`av-file${i}`);
 
-  fileInput.addEventListener('change', async (e) => {
+  fileInput.addEventListener('change', function(e) {
     const file = e.target.files[0];
-    if (!file || file.size === 0) return;
+    if (!file) return;
 
-    // iOS PHPicker (写真ライブラリ) は HEIC→JPEG 変換などを非同期で行うため
-    // file.arrayBuffer() でデータ準備完了まで待機してから blob URL を生成する
-    let objectURL;
-    try {
-      const buf = await file.arrayBuffer();
-      const blob = new Blob([buf], { type: file.type || 'image/jpeg' });
-      objectURL = URL.createObjectURL(blob);
-    } catch (_) {
-      // arrayBuffer 非対応の古い iOS では直接 createObjectURL
-      objectURL = URL.createObjectURL(file);
-    }
+    const prev = playerPhotos[i];
+    if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
 
-    // 前の blob URL を解放
-    if (playerPhotos[i] && playerPhotos[i].startsWith('blob:')) {
-      URL.revokeObjectURL(playerPhotos[i]);
-    }
-
+    const url = URL.createObjectURL(file);
     const avImg = $(`av-img${i}`);
-    avImg.src = objectURL;
-    playerPhotos[i] = objectURL;
-    avWrap.classList.add('has-photo');
+    avImg.src = url;
+    playerPhotos[i] = url;
+    avWrap.classList.add('has-photo');   // 同期的に即座に反映
 
     const img = new Image();
-    img.src = objectURL;
+    img.src = url;
     playerImages[i] = img;
 
-    fileInput.value = '';
+    setTimeout(() => { fileInput.value = ''; }, 500);
   });
 }
 
